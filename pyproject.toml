@@ -10,6 +10,9 @@ dependencies = [
     "loguru>=0.7.3",
     "ollama-haystack>=2.3.0",
     "openai>=1.63.0",
+    "qdrant-client>=1.12.0",
+    "sentence-transformers>=3.4.0",
+    "sqlmodel>=0.0.22",
     "tiktoken>=0.9.0",
 ]
 

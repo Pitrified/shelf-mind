@@ -12,8 +12,8 @@ from loguru import logger as lg
 
 from shelf_mind.metaclasses.singleton import Singleton
 from shelf_mind.params.env_type import EnvType
-from shelf_mind.params.shelf_mind_paths import ShelfMindPaths
 from shelf_mind.params.sample_params import SampleParams
+from shelf_mind.params.shelf_mind_paths import ShelfMindPaths
 from shelf_mind.params.webapp import WebappParams
 
 

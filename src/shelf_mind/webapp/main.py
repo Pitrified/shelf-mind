@@ -19,6 +19,7 @@ from loguru import logger as lg
 from starlette.staticfiles import StaticFiles
 
 from shelf_mind.config.webapp import WebappConfig
+from shelf_mind.core.container import Container
 from shelf_mind.params.shelf_mind_params import get_shelf_mind_paths
 from shelf_mind.params.shelf_mind_params import get_webapp_params
 from shelf_mind.webapp.api.v1 import api_router
@@ -62,6 +63,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         session_store=session_store,
     )
     app.state.auth_service = auth_service
+
+    # Initialize domain DI container
+    domain_container = Container()
+    try:
+        domain_container.initialize()
+        lg.info("Domain container initialized")
+    except Exception:  # noqa: BLE001
+        lg.warning(
+            "Domain container initialization failed "
+            "(Qdrant may not be running). Domain APIs will be unavailable.",
+        )
+    app.state.domain_container = domain_container
 
     lg.info("Webapp started successfully")
 

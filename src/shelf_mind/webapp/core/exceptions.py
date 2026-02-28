@@ -56,7 +56,7 @@ class RateLimitExceededException(HTTPException):
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=detail,
-            headers=headers if headers else None,
+            headers=headers or None,
         )
 
 

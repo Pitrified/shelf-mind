@@ -1,9 +1,9 @@
 """Test the ShelfMindParams class."""
 
+from shelf_mind.params.sample_params import SampleParams
 from shelf_mind.params.shelf_mind_params import ShelfMindParams
 from shelf_mind.params.shelf_mind_params import get_shelf_mind_params
 from shelf_mind.params.shelf_mind_paths import ShelfMindPaths
-from shelf_mind.params.sample_params import SampleParams
 
 
 def test_shelf_mind_params_singleton() -> None:

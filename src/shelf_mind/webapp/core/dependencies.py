@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import Cookie
 from fastapi import Depends
 from fastapi import Request
+from sqlmodel import Session
 
 from shelf_mind.params.shelf_mind_params import get_webapp_params
 from shelf_mind.webapp.core.exceptions import NotAuthenticatedException
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from shelf_mind.config.webapp import WebappConfig
+    from shelf_mind.core.container import Container
     from shelf_mind.webapp.services.auth_service import SessionStore
 
 
@@ -107,3 +109,31 @@ def get_db_session() -> Generator[None]:
     """
     # Placeholder for future database integration
     yield None
+
+
+def get_domain_container(request: Request) -> Container:
+    """Get the domain DI container from app state.
+
+    Args:
+        request: FastAPI request object.
+
+    Returns:
+        Container instance.
+    """
+    return request.app.state.domain_container
+
+
+def get_domain_session(request: Request) -> Generator[Session]:  # noqa: ARG001
+    """Get a SQLModel session from the domain container.
+
+    Args:
+        request: FastAPI request object.
+
+    Yields:
+        SQLModel Session scoped to the request.
+    """
+    from shelf_mind.infrastructure.db.database import get_engine  # noqa: PLC0415
+
+    engine = get_engine()
+    with Session(engine) as session:
+        yield session
