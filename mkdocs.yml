@@ -1,5 +1,5 @@
 site_name: Shelf Mind
-site_description: Python project template documentation
+site_description: Local-first household object registry with multimodal retrieval
 site_url: https://github.com/Pitrified/shelf-mind
 
 repo_name: Pitrified/shelf-mind
@@ -75,9 +75,25 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - User Guide:
+      - Overview: user-guide/index.md
+      - Locations: user-guide/locations.md
+      - Things: user-guide/things.md
+      - Search: user-guide/search.md
+  - Developer Guide:
+      - Overview: dev/index.md
+      - Architecture: dev/architecture.md
+      - Services: dev/services.md
+      - Infrastructure: dev/infrastructure.md
+      - Configuration: dev/configuration.md
+  - Next Steps: next-steps.md
+  - Specifications:
+      - Functional: specs/functional_specification.md
+      - Technical Architecture: specs/technical_architecture_specification.md
   - Guides:
       - UV Package Manager: guides/uv.md
       - Pre-commit Hooks: guides/pre_commit.md
+      - Webapp Setup: guides/webapp_setup.md
   - API Reference: reference/
   - Contributing: contributing.md
 

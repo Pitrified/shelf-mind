@@ -1,53 +1,58 @@
-# Shelf Mind
+# ShelfMind
 
-Welcome to the **Shelf Mind** documentation.
+Welcome to the **ShelfMind** documentation.
 
-This is a Python project template designed to help you quickly bootstrap new Python projects with best practices baked in.
+ShelfMind is a fully local-first household object registry and multimodal retrieval system.
+It enables structured spatial modeling and hybrid (text + metadata + vision) search, all running on your own hardware with zero cloud dependencies.
 
-## Features
+## What it Does
 
-- **Modern Python**: Built for Python 3.13+
-- **Dependency Management**: Uses [uv](https://docs.astral.sh/uv/) for fast, reliable dependency management
-- **Code Quality**: Pre-configured with Ruff, Pyright, and pre-commit hooks
-- **Testing**: Pytest setup with sensible defaults
-- **Documentation**: MkDocs with Material theme and auto-generated API docs
+- **Register household objects** with automatic metadata enrichment (category, material, room hints, tags)
+- **Organize locations** in an unlimited hierarchy (house > room > shelf > drawer)
+- **Track placement** of objects across locations with full history
+- **Search by text** using semantic vector similarity enhanced with metadata re-ranking
+- **Search by image** (Phase 2) using vision embeddings for visual object retrieval
+
+## Architecture at a Glance
+
+```
+┌──────────────────────────────────────────────────────┐
+│  FastAPI Webapp (REST API + Jinja2/HTMX frontend)    │
+├──────────────────────────────────────────────────────┤
+│  Application Services (Location, Thing, Placement,   │
+│  Search, SearchRanker)                               │
+├──────────────────────────────────────────────────────┤
+│  Domain Layer (Entities, Schemas, Repository ABCs)   │
+├──────────────────────────────────────────────────────┤
+│  Infrastructure (SQLite, Qdrant, SentenceTransformer,│
+│  RuleBasedEnricher, VisionStrategy)                  │
+└──────────────────────────────────────────────────────┘
+```
 
 ## Quick Start
 
 ```bash
-# Clone the template
-git clone https://github.com/YOUR_USERNAME/shelf-mind.git
+# Clone and install
+git clone https://github.com/Pitrified/shelf-mind.git
 cd shelf-mind
+uv sync --extra webapp
 
-# Install dependencies
-uv sync
+# Start the server (Qdrant must be running on localhost:6333)
+uv run uvicorn shelf_mind.webapp.app:app --reload
 
-# Run tests
-uv run pytest
-
-# Start documentation server
-uv sync --group docs
-uv run mkdocs serve
+# Run the verification suite
+uv run pytest && uv run ruff check . && uv run pyright
 ```
 
-## Project Structure
+## Documentation Overview
 
-```
-shelf-mind/
-├── src/shelf_mind/     # Main application code
-│   ├── config/           # Configuration management
-│   ├── data_models/      # Pydantic models
-│   ├── metaclasses/      # Custom metaclasses
-│   └── params/           # Parameters and paths
-├── tests/                # Test suite
-├── docs/                 # Documentation (you are here)
-├── scratch_space/        # Experimental notebooks
-└── meta/                 # Project renaming utilities
-```
-
-## Next Steps
-
-- [Getting Started](getting-started.md) - Set up your development environment
-- [Guides](guides/uv.md) - Learn about the tools used in this project
-- [API Reference](reference/) - Explore the codebase
-- [Contributing](contributing.md) - How to contribute to this project
+| Section | Description |
+|---------|-------------|
+| [Getting Started](getting-started.md) | Installation, environment setup, first run |
+| [User Guide](user-guide/index.md) | How to use the API: locations, things, search |
+| [Developer Guide](dev/index.md) | Architecture, services, infrastructure deep dives |
+| [Next Steps](next-steps.md) | Proposed improvements and future features |
+| [Specifications](specs/functional_specification.md) | Original functional and technical specs |
+| [Guides](guides/uv.md) | Tool-specific guides (uv, pre-commit, webapp setup) |
+| [API Reference](reference/) | Auto-generated API docs from source |
+| [Contributing](contributing.md) | How to contribute |
