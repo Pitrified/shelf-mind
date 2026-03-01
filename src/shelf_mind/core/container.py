@@ -83,7 +83,14 @@ class Container:
         init_db()
 
         # Vector store
-        self._qdrant_client = QdrantClient(url=self._config.qdrant_url)
+        if self._config.qdrant_path:
+            lg.info(f"Using Qdrant local disk storage: {self._config.qdrant_path}")
+            self._qdrant_client = QdrantClient(path=self._config.qdrant_path)
+        else:
+            self._qdrant_client = QdrantClient(
+                url=self._config.qdrant_url,
+                prefer_grpc=True,
+            )
         self._vector_repo = QdrantVectorRepository(
             client=self._qdrant_client,
             collection_name=self._config.qdrant_collection,
@@ -210,11 +217,13 @@ class Container:
             ThingService instance.
         """
         repo = SqlThingRepository(session)
+        placement_repo = SqlPlacementRepository(session)
         return ThingService(
             repo=repo,
             vector_repo=self.get_vector_repo(),
             embedder=self.get_embedder(),
             enricher=self.get_enricher(),
+            placement_repo=placement_repo,
         )
 
     def placement_service(self, session: Session) -> PlacementService:

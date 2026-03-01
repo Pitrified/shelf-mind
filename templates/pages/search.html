@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Search - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1 class="title is-3">Search Things</h1>
+    <p class="subtitle is-5">Find objects by text or filter by metadata</p>
+
+    <div class="columns">
+      {# Search form #}
+      <div class="column is-4">
+        <div class="box">
+          <form hx-post="/pages/search/results"
+                hx-target="#search-results"
+                hx-swap="innerHTML"
+                hx-indicator="#search-indicator">
+
+            <div class="field">
+              <label class="label" for="search-q">Search Query</label>
+              <div class="control">
+                <input class="input" type="text" id="search-q" name="q"
+                       placeholder="e.g. screwdriver in the garage"
+                       required minlength="1" maxlength="500">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="search-category">Category Filter</label>
+              <div class="control">
+                <input class="input" type="text" id="search-category"
+                       name="category_filter" placeholder="e.g. tool">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="search-material">Material Filter</label>
+              <div class="control">
+                <input class="input" type="text" id="search-material"
+                       name="material_filter" placeholder="e.g. metal">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="search-location">Location Filter</label>
+              <div class="control">
+                <input class="input" type="text" id="search-location"
+                       name="location_filter" placeholder="e.g. /home/garage">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="search-limit">Max Results</label>
+              <div class="control">
+                <input class="input" type="number" id="search-limit"
+                       name="limit" value="10" min="1" max="100">
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="control">
+                <button class="button is-primary is-fullwidth" type="submit">
+                  <span>Search</span>
+                  <span id="search-indicator" class="htmx-indicator ml-2">
+                    Searching...
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {# Search results #}
+      <div class="column is-8">
+        <div id="search-results">
+          <div class="box">
+            <p class="has-text-grey-light has-text-centered">
+              Enter a query and click Search to find things
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -46,6 +46,9 @@ class VectorRepository(ABC):
         vector: list[float],
         limit: int = 10,
         location_filter: str | None = None,
+        category_filter: str | None = None,
+        material_filter: str | None = None,
+        tags_filter: list[str] | None = None,
     ) -> list[SearchResult]:
         """Search by text vector similarity.
 
@@ -53,6 +56,9 @@ class VectorRepository(ABC):
             vector: Query embedding.
             limit: Max results.
             location_filter: Optional location_path prefix filter.
+            category_filter: Optional category exact match.
+            material_filter: Optional material keyword filter.
+            tags_filter: Optional tags that must all be present.
 
         Returns:
             Ranked search results with scores.

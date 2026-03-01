@@ -34,6 +34,7 @@ from shelf_mind.webapp.routers import pages_router
 from shelf_mind.webapp.schemas.common_schemas import ErrorResponse
 from shelf_mind.webapp.services.auth_service import GoogleAuthService
 from shelf_mind.webapp.services.auth_service import SessionStore
+from shelf_mind.webapp.services.auth_service import SqliteSessionStore
 
 
 @asynccontextmanager
@@ -51,8 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Startup
     lg.info("Starting webapp...")
 
-    # Initialize session store
-    session_store = SessionStore()
+    # Initialize session store (persistent SQLite-backed)
+    session_store: SessionStore = SqliteSessionStore()
     app.state.session_store = session_store
 
     # Initialize auth service

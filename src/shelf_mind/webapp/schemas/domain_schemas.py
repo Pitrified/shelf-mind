@@ -146,12 +146,12 @@ class ThingListResponse(BaseModel):
 class PlacementCreate(BaseModel):
     """Request DTO for placing a Thing.
 
+    The thing_id comes from the URL path parameter.
+
     Attributes:
-        thing_id: UUID of the Thing.
         location_id: UUID of the Location.
     """
 
-    thing_id: uuid.UUID
     location_id: uuid.UUID
 
 
@@ -182,11 +182,17 @@ class SearchRequest(BaseModel):
     Attributes:
         q: Query string.
         location_filter: Optional path prefix filter.
+        category_filter: Optional category exact match filter.
+        material_filter: Optional material keyword filter.
+        tags_filter: Optional tags that must all be present.
         limit: Max results.
     """
 
-    q: str = Field(min_length=1)
+    q: str = Field(min_length=1, max_length=500)
     location_filter: str | None = None
+    category_filter: str | None = None
+    material_filter: str | None = None
+    tags_filter: list[str] | None = None
     limit: int = Field(default=10, ge=1, le=100)
 
 
@@ -224,3 +230,50 @@ class SearchResponse(BaseModel):
     results: list[SearchResultResponse]
     total: int
     query: str
+
+
+# -- Batch operation schemas --
+
+
+class BatchThingCreate(BaseModel):
+    """Request DTO for batch thing creation.
+
+    Attributes:
+        items: List of ThingCreate items (1-50).
+    """
+
+    items: list[ThingCreate] = Field(min_length=1, max_length=50)
+
+
+class BatchLocationCreate(BaseModel):
+    """Request DTO for batch location creation.
+
+    Attributes:
+        items: List of LocationCreate items (1-50).
+    """
+
+    items: list[LocationCreate] = Field(min_length=1, max_length=50)
+
+
+class BatchDeleteRequest(BaseModel):
+    """Request DTO for batch deletion.
+
+    Attributes:
+        ids: List of UUIDs to delete (1-50).
+    """
+
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=50)
+
+
+class BatchResultResponse(BaseModel):
+    """Response DTO for batch operations.
+
+    Attributes:
+        succeeded: Number of items that succeeded.
+        failed: Number of items that failed.
+        errors: List of error messages for failed items.
+    """
+
+    succeeded: int
+    failed: int
+    errors: list[str] = []

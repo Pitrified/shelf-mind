@@ -17,6 +17,8 @@ from shelf_mind.application.errors import LocationNotFoundError
 from shelf_mind.core.container import Container
 from shelf_mind.webapp.core.dependencies import get_domain_container
 from shelf_mind.webapp.core.dependencies import get_domain_session
+from shelf_mind.webapp.schemas.domain_schemas import BatchLocationCreate
+from shelf_mind.webapp.schemas.domain_schemas import BatchResultResponse
 from shelf_mind.webapp.schemas.domain_schemas import LocationCreate
 from shelf_mind.webapp.schemas.domain_schemas import LocationResponse
 from shelf_mind.webapp.schemas.domain_schemas import LocationUpdate
@@ -162,6 +164,43 @@ async def get_children(
     ]
 
 
+@router.get(
+    "/{location_id}/subtree",
+    summary="Get full subtree of a location",
+)
+async def get_subtree(
+    location_id: uuid.UUID,
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> list[LocationResponse]:
+    """List all descendants under a location.
+
+    Args:
+        location_id: UUID of the root Location.
+        session: Database session.
+        container: DI container.
+
+    Returns:
+        All descendant locations.
+    """
+    svc = container.location_service(session)
+    try:
+        descendants = svc.get_subtree(location_id)
+    except LocationNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    return [
+        LocationResponse(
+            id=loc.id,
+            name=loc.name,
+            parent_id=loc.parent_id,
+            path=loc.path,
+            created_at=loc.created_at,
+        )
+        for loc in descendants
+    ]
+
+
 @router.patch(
     "/{location_id}",
     summary="Update a location (rename or move)",
@@ -239,3 +278,43 @@ async def delete_location(
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(e)) from e
     except LocationHasThingsError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+
+@router.post(
+    "/batch",
+    status_code=status.HTTP_201_CREATED,
+    summary="Batch create locations",
+)
+async def batch_create_locations(
+    body: BatchLocationCreate,
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> BatchResultResponse:
+    """Create multiple Locations in one request.
+
+    Args:
+        body: Batch creation data (1-50 items).
+        session: Database session.
+        container: DI container.
+
+    Returns:
+        Batch result with success/failure counts.
+    """
+    svc = container.location_service(session)
+    succeeded = 0
+    errors: list[str] = []
+
+    for item in body.items:
+        try:
+            svc.create_location(name=item.name, parent_id=item.parent_id)
+            succeeded += 1
+        except (LocationNotFoundError, DuplicateSiblingNameError) as e:
+            errors.append(f"{item.name}: {e}")
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{item.name}: {e}")
+
+    return BatchResultResponse(
+        succeeded=succeeded,
+        failed=len(errors),
+        errors=errors,
+    )

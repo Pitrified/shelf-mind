@@ -1,0 +1,18 @@
+{# Location tree partial - rendered via HTMX #}
+{% if locations %}
+<ul class="menu-list">
+  {% for loc in locations %}
+  <li>
+    <a hx-get="/pages/locations/{{ loc.id }}/detail"
+       hx-target="#location-detail"
+       hx-swap="innerHTML"
+       class="is-flex is-justify-content-space-between is-align-items-center">
+      <span>{{ loc.name }}</span>
+      <span class="tag is-light is-small">{{ loc.path }}</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="has-text-grey-light">No locations yet. Create one above.</p>
+{% endif %}

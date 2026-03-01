@@ -5,8 +5,10 @@ import uuid
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import File
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import UploadFile
 from fastapi import status
 from loguru import logger as lg
 from sqlmodel import Session
@@ -16,6 +18,9 @@ from shelf_mind.application.errors import ThingNotFoundError
 from shelf_mind.core.container import Container
 from shelf_mind.webapp.core.dependencies import get_domain_container
 from shelf_mind.webapp.core.dependencies import get_domain_session
+from shelf_mind.webapp.schemas.domain_schemas import BatchDeleteRequest
+from shelf_mind.webapp.schemas.domain_schemas import BatchResultResponse
+from shelf_mind.webapp.schemas.domain_schemas import BatchThingCreate
 from shelf_mind.webapp.schemas.domain_schemas import PlacementCreate
 from shelf_mind.webapp.schemas.domain_schemas import PlacementResponse
 from shelf_mind.webapp.schemas.domain_schemas import ThingCreate
@@ -229,7 +234,7 @@ async def delete_thing(
     summary="Place a thing at a location",
 )
 async def place_thing(
-    thing_id: uuid.UUID,  # noqa: ARG001
+    thing_id: uuid.UUID,
     body: PlacementCreate,
     session: Annotated[Session, Depends(get_domain_session)],
     container: Annotated[Container, Depends(get_domain_container)],
@@ -248,7 +253,7 @@ async def place_thing(
     placement_svc = container.placement_service(session)
 
     try:
-        placement = placement_svc.place_thing(body.thing_id, body.location_id)
+        placement = placement_svc.place_thing(thing_id, body.location_id)
     except ThingNotFoundError as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except LocationNotFoundError as e:
@@ -261,6 +266,57 @@ async def place_thing(
         placed_at=placement.placed_at,
         active=placement.active,
     )
+
+
+@router.post(
+    "/{thing_id}/image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Upload an image for a thing",
+)
+async def upload_thing_image(
+    thing_id: uuid.UUID,
+    image: Annotated[UploadFile, File(...)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> None:
+    """Upload an image for a Thing, generating and storing the image embedding.
+
+    Runs the VisionStrategy to generate an image vector and stores it
+    alongside the existing text vector.
+
+    Args:
+        thing_id: UUID of the Thing.
+        image: Uploaded image file.
+        session: Database session.
+        container: DI container.
+    """
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file must be an image",
+        )
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Empty image file",
+        )
+
+    vision = container.get_vision()
+    processed = vision.preprocess(image_bytes)
+    vectors = vision.embed(processed)
+    if not vectors:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not generate image embedding",
+        )
+
+    thing_svc = container.thing_service(session)
+    try:
+        thing_svc.index_image(thing_id, vectors[0])
+    except ThingNotFoundError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
 @router.get(
@@ -294,3 +350,98 @@ async def get_placement_history(
         )
         for p in placements
     ]
+
+
+@router.post(
+    "/batch",
+    status_code=status.HTTP_201_CREATED,
+    summary="Batch create things",
+)
+async def batch_create_things(
+    body: BatchThingCreate,
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> BatchResultResponse:
+    """Create multiple Things in one request.
+
+    Args:
+        body: Batch creation data (1-50 items).
+        session: Database session.
+        container: DI container.
+
+    Returns:
+        Batch result with success/failure counts.
+    """
+    thing_svc = container.thing_service(session)
+    placement_svc = container.placement_service(session)
+    succeeded = 0
+    errors: list[str] = []
+
+    for item in body.items:
+        try:
+            location_path = None
+            if item.location_id is not None:
+                loc_svc = container.location_service(session)
+                try:
+                    loc = loc_svc.get_location(item.location_id)
+                    location_path = loc.path
+                except Exception:  # noqa: BLE001
+                    lg.debug("Could not resolve location for batch item")
+
+            thing = thing_svc.create_thing(
+                name=item.name,
+                description=item.description,
+                location_path=location_path,
+            )
+
+            if item.location_id is not None:
+                placement_svc.place_thing(thing.id, item.location_id)
+
+            succeeded += 1
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{item.name}: {e}")
+
+    return BatchResultResponse(
+        succeeded=succeeded,
+        failed=len(errors),
+        errors=errors,
+    )
+
+
+@router.delete(
+    "/batch",
+    summary="Batch delete things",
+)
+async def batch_delete_things(
+    body: BatchDeleteRequest,
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> BatchResultResponse:
+    """Delete multiple Things in one request.
+
+    Args:
+        body: Batch deletion data (1-50 ids).
+        session: Database session.
+        container: DI container.
+
+    Returns:
+        Batch result with success/failure counts.
+    """
+    thing_svc = container.thing_service(session)
+    succeeded = 0
+    errors: list[str] = []
+
+    for thing_id in body.ids:
+        try:
+            thing_svc.delete_thing(thing_id)
+            succeeded += 1
+        except ThingNotFoundError:
+            errors.append(f"Thing {thing_id} not found")
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"Thing {thing_id}: {e}")
+
+    return BatchResultResponse(
+        succeeded=succeeded,
+        failed=len(errors),
+        errors=errors,
+    )

@@ -97,3 +97,14 @@ class PlacementRepository(ABC):
         Returns:
             Number of placements deleted.
         """
+
+    @abstractmethod
+    def delete_by_thing(self, thing_id: uuid.UUID) -> int:
+        """Delete all placements for a thing.
+
+        Args:
+            thing_id: UUID of the Thing.
+
+        Returns:
+            Number of placements deleted.
+        """

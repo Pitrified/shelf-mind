@@ -17,6 +17,7 @@ from shelf_mind.domain.schemas.metadata_schema import MetadataSchema
 if TYPE_CHECKING:
     import uuid
 
+    from shelf_mind.domain.repositories.placement_repository import PlacementRepository
     from shelf_mind.domain.repositories.thing_repository import ThingRepository
     from shelf_mind.domain.repositories.vector_repository import VectorRepository
     from shelf_mind.infrastructure.embeddings.text_embedding import (
@@ -33,6 +34,7 @@ class ThingService:
         vector_repo: VectorRepository for embedding storage.
         embedder: TextEmbeddingProvider for generating vectors.
         enricher: MetadataEnricher for extracting structured metadata.
+        placement_repo: PlacementRepository for cascade deletion.
     """
 
     def __init__(
@@ -41,6 +43,7 @@ class ThingService:
         vector_repo: VectorRepository,
         embedder: TextEmbeddingProvider,
         enricher: MetadataEnricher,
+        placement_repo: PlacementRepository | None = None,
     ) -> None:
         """Initialize with repository and infrastructure dependencies.
 
@@ -49,11 +52,13 @@ class ThingService:
             vector_repo: VectorRepository for embedding storage.
             embedder: TextEmbeddingProvider for generating vectors.
             enricher: MetadataEnricher for extracting structured metadata.
+            placement_repo: PlacementRepository for cascade deletion.
         """
         self._repo = repo
         self._vector_repo = vector_repo
         self._embedder = embedder
         self._enricher = enricher
+        self._placement_repo = placement_repo
 
     def create_thing(
         self,
@@ -200,9 +205,33 @@ class ThingService:
         """
         self.get_thing(thing_id)  # ensure exists
         self._vector_repo.delete_vectors(thing_id)
+        if self._placement_repo is not None:
+            self._placement_repo.delete_by_thing(thing_id)
         deleted = self._repo.delete(thing_id)
         lg.info(f"Deleted thing: {thing_id}")
         return deleted
+
+    def index_image(
+        self,
+        thing_id: uuid.UUID,
+        image_vector: list[float],
+    ) -> None:
+        """Store an image embedding for an existing Thing.
+
+        Args:
+            thing_id: UUID of the Thing (must exist).
+            image_vector: Pre-computed image embedding.
+
+        Raises:
+            ThingNotFoundError: If thing not found.
+        """
+        thing = self.get_thing(thing_id)
+        payload = {
+            "name": thing.name,
+            "description": thing.description,
+        }
+        self._vector_repo.upsert_image_vector(thing_id, image_vector, payload)
+        lg.info(f"Indexed image vector for thing: {thing.name} ({thing_id})")
 
     def _index_text_vector(
         self,

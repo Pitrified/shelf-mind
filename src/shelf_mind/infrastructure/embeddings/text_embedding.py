@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
+import asyncio
 from typing import TYPE_CHECKING
 
 from loguru import logger as lg
@@ -25,6 +26,20 @@ class TextEmbeddingProvider(ABC):
         Returns:
             Float vector of model-specific dimensionality.
         """
+
+    async def embed_async(self, text: str) -> list[float]:
+        """Generate an embedding vector asynchronously.
+
+        Wraps the synchronous embed() call in asyncio.to_thread()
+        to avoid blocking the event loop.
+
+        Args:
+            text: Input text to embed.
+
+        Returns:
+            Float vector of model-specific dimensionality.
+        """
+        return await asyncio.to_thread(self.embed, text)
 
 
 class SentenceTransformerEmbedder(TextEmbeddingProvider):

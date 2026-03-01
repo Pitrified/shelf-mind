@@ -148,6 +148,9 @@ class QdrantVectorRepository(VectorRepository):
         vector: list[float],
         limit: int = 10,
         location_filter: str | None = None,
+        category_filter: str | None = None,
+        material_filter: str | None = None,
+        tags_filter: list[str] | None = None,
     ) -> list[SearchResult]:
         """Search by text vector similarity.
 
@@ -155,20 +158,49 @@ class QdrantVectorRepository(VectorRepository):
             vector: Query embedding.
             limit: Max results.
             location_filter: Optional location_path prefix filter.
+            category_filter: Optional category exact match.
+            material_filter: Optional material keyword filter.
+            tags_filter: Optional tags that must all be present.
 
         Returns:
             Ranked search results with scores.
         """
-        query_filter = None
+        conditions: list[models.Condition] = []
+
         if location_filter:
-            query_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="location_path",
-                        match=models.MatchText(text=location_filter),
-                    ),
-                ],
+            conditions.append(
+                models.FieldCondition(
+                    key="location_path",
+                    match=models.MatchText(text=location_filter),
+                ),
             )
+
+        if category_filter:
+            conditions.append(
+                models.FieldCondition(
+                    key="category",
+                    match=models.MatchValue(value=category_filter),
+                ),
+            )
+
+        if material_filter:
+            conditions.append(
+                models.FieldCondition(
+                    key="description",
+                    match=models.MatchText(text=material_filter),
+                ),
+            )
+
+        if tags_filter:
+            conditions.extend(
+                models.FieldCondition(
+                    key="tags",
+                    match=models.MatchValue(value=tag),
+                )
+                for tag in tags_filter
+            )
+
+        query_filter = models.Filter(must=conditions) if conditions else None
 
         results = self._client.query_points(
             collection_name=self._collection,

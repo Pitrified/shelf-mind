@@ -156,3 +156,19 @@ class SqlPlacementRepository(PlacementRepository):
             self._session.delete(p)
         self._session.commit()
         return len(placements)
+
+    def delete_by_thing(self, thing_id: uuid.UUID) -> int:
+        """Delete all placements for a thing.
+
+        Args:
+            thing_id: UUID of the Thing.
+
+        Returns:
+            Number of placements deleted.
+        """
+        stmt = select(Placement).where(Placement.thing_id == thing_id)
+        placements = list(self._session.exec(stmt).all())
+        for p in placements:
+            self._session.delete(p)
+        self._session.commit()
+        return len(placements)

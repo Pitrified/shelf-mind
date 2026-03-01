@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Register Thing - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h1 class="title is-3">Register a Thing</h1>
+    <p class="subtitle is-5">Add a new object to your inventory</p>
+
+    <div class="columns">
+      {# Registration form #}
+      <div class="column is-6">
+        <div class="box">
+          <form hx-post="/pages/things/create"
+                hx-target="#thing-result"
+                hx-swap="innerHTML"
+                hx-indicator="#submit-indicator">
+
+            <div class="field">
+              <label class="label" for="thing-name">Name</label>
+              <div class="control">
+                <input class="input" type="text" id="thing-name" name="name"
+                       placeholder="e.g. Red screwdriver"
+                       required minlength="1" maxlength="120"
+                       hx-post="/pages/things/preview"
+                       hx-target="#metadata-preview"
+                       hx-trigger="keyup changed delay:500ms"
+                       hx-include="[name='description']">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="thing-desc">Description</label>
+              <div class="control">
+                <textarea class="textarea" id="thing-desc" name="description"
+                          placeholder="Optional description"
+                          rows="3"
+                          hx-post="/pages/things/preview"
+                          hx-target="#metadata-preview"
+                          hx-trigger="keyup changed delay:500ms"
+                          hx-include="[name='name']"></textarea>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="thing-location">Location (optional)</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="thing-location" name="location_id"
+                          hx-get="/pages/things/location-options"
+                          hx-trigger="load"
+                          hx-swap="innerHTML">
+                    <option value="">Loading locations...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="control">
+                <button class="button is-primary is-fullwidth" type="submit">
+                  <span>Register Thing</span>
+                  <span id="submit-indicator" class="htmx-indicator ml-2">
+                    Saving...
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {# Metadata preview & result #}
+      <div class="column is-6">
+        <div class="box">
+          <h2 class="title is-5">Metadata Preview</h2>
+          <div id="metadata-preview">
+            <p class="has-text-grey-light">
+              Start typing to preview extracted metadata
+            </p>
+          </div>
+        </div>
+
+        <div class="box mt-4" id="thing-result">
+          {# Registration result appears here #}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

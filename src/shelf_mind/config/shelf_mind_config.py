@@ -22,6 +22,14 @@ class ShelfMindConfig(BaseModel):
 
     database_url: str = Field(default="sqlite:///data/shelf_mind.db")
     qdrant_url: str = Field(default="http://localhost:6333")
+    qdrant_path: str | None = Field(
+        default=None,
+        description=(
+            "Local disk path for Qdrant persistent storage. "
+            "When set, Qdrant runs in embedded/local mode instead of "
+            "connecting to a remote server via qdrant_url."
+        ),
+    )
     qdrant_collection: str = Field(default="things")
     text_model_name: str = Field(default="all-MiniLM-L6-v2")
     image_model_name: str = Field(default="clip-ViT-B-32")

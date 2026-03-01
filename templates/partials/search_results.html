@@ -1,0 +1,40 @@
+{# Search results partial - rendered via HTMX #}
+{% if results %}
+<div class="box">
+  <p class="mb-3">
+    <strong>{{ total }}</strong> result{{ "s" if total != 1 else "" }} for
+    "<em>{{ query }}</em>"
+  </p>
+
+  {% for r in results %}
+  <div class="card mb-3">
+    <div class="card-content">
+      <div class="is-flex is-justify-content-space-between is-align-items-center">
+        <p class="title is-6 mb-1">{{ r.name }}</p>
+        <span class="tag is-success is-light">{{ "%.2f"|format(r.score) }}</span>
+      </div>
+      {% if r.description %}
+      <p class="subtitle is-7 has-text-grey">{{ r.description }}</p>
+      {% endif %}
+      <div class="tags mt-2">
+        {% if r.category %}
+        <span class="tag is-primary is-light">{{ r.category }}</span>
+        {% endif %}
+        {% if r.location_path %}
+        <span class="tag is-link is-light">{{ r.location_path }}</span>
+        {% endif %}
+        {% for tag in r.tags %}
+        <span class="tag is-info is-light">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="box">
+  <p class="has-text-grey-light has-text-centered">
+    No results found for "<em>{{ query }}</em>"
+  </p>
+</div>
+{% endif %}

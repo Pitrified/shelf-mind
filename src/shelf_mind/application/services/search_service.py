@@ -52,13 +52,16 @@ class SearchService:
         self,
         query: str,
         location_filter: str | None = None,
+        category_filter: str | None = None,
+        material_filter: str | None = None,
+        tags_filter: list[str] | None = None,
         limit: int = 10,
     ) -> list[SearchResult]:
         """Execute a text search pipeline.
 
         Pipeline:
         1. Embed query.
-        2. Vector similarity search.
+        2. Vector similarity search with structured metadata filters.
         3. Payload filter (location_path prefix).
         4. Ranking layer.
         5. Return DTO with confidence score.
@@ -66,21 +69,31 @@ class SearchService:
         Args:
             query: Search query string.
             location_filter: Optional location path prefix filter.
+            category_filter: Optional category exact match.
+            material_filter: Optional material keyword filter.
+            tags_filter: Optional tags that must all be present.
             limit: Max results.
 
         Returns:
             Ranked SearchResult list.
         """
-        lg.debug(f"Text search: q='{query}', location={location_filter}, limit={limit}")
+        lg.debug(
+            f"Text search: q='{query}', location={location_filter}, "
+            f"category={category_filter}, material={material_filter}, "
+            f"tags={tags_filter}, limit={limit}",
+        )
 
         # 1. Embed query
         query_vector = self._embedder.embed(query)
 
-        # 2-3. Vector search with optional location filter
+        # 2-3. Vector search with optional filters
         raw_results = self._vector_repo.search_text(
             vector=query_vector,
             limit=limit,
             location_filter=location_filter,
+            category_filter=category_filter,
+            material_filter=material_filter,
+            tags_filter=tags_filter,
         )
 
         # 4. Re-rank

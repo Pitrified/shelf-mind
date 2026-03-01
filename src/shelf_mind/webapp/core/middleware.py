@@ -1,5 +1,6 @@
 """Custom middleware for the webapp."""
 
+from collections import defaultdict
 from collections.abc import Callable
 import time
 import uuid
@@ -176,6 +177,150 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Simple in-memory sliding window rate limiter per client IP.
+
+    Tracks request timestamps per IP and rejects requests that exceed
+    the configured requests-per-minute threshold.
+
+    Args:
+        app: ASGI application.
+        requests_per_minute: Max requests per minute per IP.
+        burst_size: Extra burst allowance above the per-minute rate.
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        requests_per_minute: int = 100,
+        burst_size: int = 10,
+    ) -> None:
+        """Initialize rate limiter.
+
+        Args:
+            app: ASGI application.
+            requests_per_minute: Max requests per minute per IP.
+            burst_size: Extra burst allowance above the per-minute rate.
+        """
+        super().__init__(app)
+        self._rpm = requests_per_minute
+        self._burst = burst_size
+        self._window = 60.0  # seconds
+        self._requests: dict[str, list[float]] = defaultdict(list)
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable,
+    ) -> Response:
+        """Check rate limit before processing request.
+
+        Args:
+            request: Incoming request.
+            call_next: Next middleware/handler.
+
+        Returns:
+            Response from handler, or 429 if rate limited.
+        """
+        from shelf_mind.webapp.core.exceptions import (  # noqa: PLC0415
+            RateLimitExceededException,
+        )
+
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.monotonic()
+
+        # Clean old entries
+        cutoff = now - self._window
+        self._requests[client_ip] = [t for t in self._requests[client_ip] if t > cutoff]
+
+        max_allowed = self._rpm + self._burst
+        if len(self._requests[client_ip]) >= max_allowed:
+            # Calculate retry_after from oldest entry
+            oldest = self._requests[client_ip][0]
+            retry_after = int(self._window - (now - oldest)) + 1
+            raise RateLimitExceededException(retry_after=max(1, retry_after))
+
+        self._requests[client_ip].append(now)
+        return await call_next(request)
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """CSRF protection middleware for state-changing requests.
+
+    For browser requests (Accept: text/html or HTMX), validates that
+    the X-CSRF-Token header matches the csrf_token cookie.
+    Sets the csrf_token cookie on responses if not present.
+
+    API-only callers (JSON Accept header, no session cookie) are exempt
+    since they authenticate with tokens, not cookies.
+    """
+
+    _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+    _EXEMPT_PATHS = frozenset({"/auth/google/callback", "/auth/logout"})
+
+    def __init__(self, app: ASGIApp, *, secret_key: str) -> None:
+        """Initialize CSRF middleware.
+
+        Args:
+            app: ASGI application.
+            secret_key: Secret for signing tokens.
+        """
+        super().__init__(app)
+        self._secret_key = secret_key
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable,
+    ) -> Response:
+        """Validate CSRF token for unsafe methods.
+
+        Args:
+            request: Incoming request.
+            call_next: Next middleware/handler.
+
+        Returns:
+            Response from handler.
+        """
+        import secrets  # noqa: PLC0415
+
+        from starlette.responses import JSONResponse  # noqa: PLC0415
+
+        # Only enforce for unsafe methods
+        if request.method in self._UNSAFE_METHODS:
+            path = request.url.path
+
+            # Skip exempt paths (OAuth callback, etc.)
+            if path not in self._EXEMPT_PATHS:
+                # Check if this is a browser request (has session cookie)
+                session_cookie = request.cookies.get("session")
+                if session_cookie:
+                    csrf_cookie = request.cookies.get("csrf_token", "")
+                    csrf_header = request.headers.get("x-csrf-token", "")
+
+                    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+                        return JSONResponse(
+                            status_code=403,
+                            content={"detail": "CSRF token validation failed"},
+                        )
+
+        response = await call_next(request)
+
+        # Set CSRF cookie if not present
+        if "csrf_token" not in request.cookies:
+            token = secrets.token_hex(32)
+            response.set_cookie(
+                key="csrf_token",
+                value=token,
+                httponly=False,  # Must be readable by JavaScript/HTMX
+                samesite="lax",
+                secure=request.url.scheme == "https",
+            )
+
+        return response
+
+
 def setup_middleware(app: ASGIApp, config: WebappConfig) -> None:
     """Configure all custom middleware on the application.
 
@@ -193,5 +338,14 @@ def setup_middleware(app: ASGIApp, config: WebappConfig) -> None:
     app.add_middleware(
         SecurityHeadersMiddleware,
         is_production=not config.debug,
+    )
+    app.add_middleware(
+        CSRFMiddleware,
+        secret_key=config.session.secret_key,
+    )
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=config.rate_limit.requests_per_minute,
+        burst_size=config.rate_limit.burst_size,
     )
     app.add_middleware(RequestIDMiddleware)

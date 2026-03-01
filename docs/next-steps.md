@@ -94,13 +94,13 @@ Add bulk endpoints for common operations:
 
 Current gaps:
 
-| Component | Status |
-|-----------|--------|
-| `SearchService` | No tests |
-| `ThingService` | No tests |
-| `Container` | No tests |
-| `QdrantVectorRepository` | No tests |
-| `SentenceTransformerEmbedder` | No tests |
+| Component                                | Status   |
+| ---------------------------------------- | -------- |
+| `SearchService`                          | No tests |
+| `ThingService`                           | No tests |
+| `Container`                              | No tests |
+| `QdrantVectorRepository`                 | No tests |
+| `SentenceTransformerEmbedder`            | No tests |
 | API v1 routers (location, thing, search) | No tests |
 
 Priority: Add unit tests for `SearchService` and `ThingService` with mocked infrastructure. Add integration tests for the API routers using `TestClient`.

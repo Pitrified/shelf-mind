@@ -2,6 +2,9 @@
 
 from datetime import UTC
 from datetime import datetime
+import json
+from pathlib import Path
+import sqlite3
 from urllib.parse import urlencode
 
 import httpx
@@ -25,7 +28,8 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 class SessionStore:
     """In-memory session storage.
 
-    For production, consider using Redis or a database.
+    Suitable for development and testing. For production, use
+    SqliteSessionStore for persistent sessions.
     """
 
     def __init__(self) -> None:
@@ -108,6 +112,140 @@ class SessionStore:
             removed += 1
 
         # Cleanup state tokens
+        expired_states = [
+            state for state, exp in self._state_tokens.items() if now > exp
+        ]
+        for state in expired_states:
+            del self._state_tokens[state]
+            removed += 1
+
+        if removed > 0:
+            lg.debug(f"Cleaned up {removed} expired sessions/tokens")
+
+        return removed
+
+
+class SqliteSessionStore(SessionStore):
+    """SQLite-backed session storage for persistent sessions across restarts.
+
+    Extends SessionStore to persist sessions in a SQLite database file
+    while keeping the same API. State tokens remain in-memory since they
+    are short-lived.
+
+    Args:
+        db_path: Path to the SQLite database file.
+    """
+
+    def __init__(self, db_path: str = "data/sessions.db") -> None:
+        """Initialize with database path.
+
+        Args:
+            db_path: Path to the SQLite database file.
+        """
+        super().__init__()
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._db_path = db_path
+        self._init_db()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """Get a database connection.
+
+        Returns:
+            SQLite connection.
+        """
+        return sqlite3.connect(self._db_path)
+
+    def _init_db(self) -> None:
+        """Create the sessions table if it does not exist."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    session_id TEXT PRIMARY KEY,
+                    data TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                )
+                """,
+            )
+            conn.commit()
+
+    def create_session(self, session_data: SessionData) -> None:
+        """Store a new session in SQLite.
+
+        Args:
+            session_data: Session data to store.
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO sessions (session_id, data, expires_at) "
+                "VALUES (?, ?, ?)",
+                (
+                    session_data.session_id,
+                    session_data.model_dump_json(),
+                    session_data.expires_at.isoformat(),
+                ),
+            )
+            conn.commit()
+        lg.debug(f"Created persistent session for user {session_data.email}")
+
+    def get_session(self, session_id: str) -> SessionData | None:
+        """Retrieve a session by ID from SQLite.
+
+        Args:
+            session_id: Session identifier.
+
+        Returns:
+            SessionData if found and not expired, None otherwise.
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT data, expires_at FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        data_json, expires_at_str = row
+        expires_at = datetime.fromisoformat(expires_at_str)
+
+        if is_expired(expires_at):
+            self.delete_session(session_id)
+            return None
+
+        return SessionData(**json.loads(data_json))
+
+    def delete_session(self, session_id: str) -> None:
+        """Delete a session from SQLite.
+
+        Args:
+            session_id: Session identifier to delete.
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                "DELETE FROM sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            conn.commit()
+        lg.debug(f"Deleted persistent session {session_id[:8]}...")
+
+    def cleanup_expired(self) -> int:
+        """Remove expired sessions from SQLite and state tokens from memory.
+
+        Returns:
+            Number of removed items.
+        """
+        now_iso = datetime.now(UTC).isoformat()
+        with self._get_conn() as conn:
+            cursor = conn.execute(
+                "DELETE FROM sessions WHERE expires_at < ?",
+                (now_iso,),
+            )
+            removed = cursor.rowcount
+            conn.commit()
+
+        # Also clean up in-memory state tokens
+        now = datetime.now(UTC)
         expired_states = [
             state for state, exp in self._state_tokens.items() if now > exp
         ]

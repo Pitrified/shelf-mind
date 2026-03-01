@@ -106,6 +106,17 @@ Both return `SearchResult` domain objects hydrated from the point's payload.
 
 Default URL: `http://localhost:6333` (configurable via `ShelfMindConfig.qdrant_url`).
 
+For persistent local storage (no external server), set `ShelfMindConfig.qdrant_path`:
+
+```python
+# In config or environment:
+QDRANT_PATH=/data/qdrant_storage  # uses local filesystem instead of URL
+```
+
+When `qdrant_path` is set, the client opens the collection directly from disk, which
+is ideal for single-node deployments. When using a remote server, gRPC is preferred
+(`prefer_grpc=True`) for better throughput.
+
 The app starts gracefully without Qdrant - only search features require it.
 
 ## Text Embeddings
@@ -199,12 +210,55 @@ The FastAPI app registers several middleware layers:
 
 ## Authentication
 
-Google OAuth 2.0 with in-memory session storage:
+Google OAuth 2.0 with SQLite-backed session storage:
 
 1. `/auth/google` - Redirects to Google consent screen
 2. `/auth/google/callback` - Handles OAuth callback, creates session
 3. `/auth/logout` - Destroys session
-4. Session cookie (`session`) maps to `SessionData` in an in-memory store
+4. Session cookie (`session`) maps to `SessionData` in a `SqliteSessionStore` backed by SQLite
 
 !!! note
-    The domain API endpoints (locations, things, search) do not currently require authentication. Only the `/api/v1/protected` example endpoint requires a valid session.
+    All domain API endpoints (locations, things, search) now require authentication via the `get_current_user` dependency on the v1 router.
+
+## Database Connection Pooling
+
+SQLite connections are lightweight and do not benefit from heavy pooling. By default
+SQLModel opens a new connection per session via `create_engine(url, connect_args={"check_same_thread": False})`.
+
+For **PostgreSQL** deployments, configure connection pooling via SQLAlchemy's pool parameters:
+
+```python
+from sqlmodel import create_engine
+
+engine = create_engine(
+    "postgresql+psycopg2://user:pass@localhost/shelf_mind",
+    pool_size=10,          # permanent connections
+    max_overflow=20,       # temporary overflow connections
+    pool_timeout=30,       # seconds to wait for a free connection
+    pool_recycle=1800,     # recycle connections after 30 min
+    pool_pre_ping=True,    # verify connections before use
+)
+```
+
+Alternatively, use an external connection pooler like **PgBouncer** in transaction mode, and
+set `pool_size=1` in SQLAlchemy to let PgBouncer handle multiplexing.
+
+## Migrations (Alembic)
+
+Database schema migrations are managed by Alembic. Config lives in `alembic.ini`,
+migration scripts in `migrations/`.
+
+```bash
+# Create a new migration after changing SQLModel entities:
+uv run alembic revision --autogenerate -m "describe changes"
+
+# Apply pending migrations:
+uv run alembic upgrade head
+
+# Rollback one step:
+uv run alembic downgrade -1
+```
+
+!!! note
+    The migration env uses `render_as_batch=True` for SQLite compatibility (ALTER TABLE
+    limitations). For PostgreSQL, normal migrations work fine.
