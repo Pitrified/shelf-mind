@@ -1,25 +1,54 @@
 {# Location detail partial - rendered via HTMX #}
 <h2 class="title is-5">{{ location.name }}</h2>
-<table class="table is-fullwidth">
+<table class="table is-fullwidth is-narrow">
   <tbody>
     <tr><td><strong>Path</strong></td><td>{{ location.path }}</td></tr>
-    <tr><td><strong>ID</strong></td><td><code>{{ location.id }}</code></td></tr>
+    <tr><td><strong>ID</strong></td><td><code class="is-size-7">{{ location.id }}</code></td></tr>
     <tr><td><strong>Created</strong></td><td>{{ location.created_at }}</td></tr>
   </tbody>
 </table>
 
-{# Add child location #}
+{# ── Rename form ────────────────────────────────────── #}
+<details class="mb-3">
+  <summary class="has-text-info is-clickable is-size-7">Rename location</summary>
+  <form hx-post="/pages/locations/{{ location.id }}/rename"
+        hx-target="#location-detail"
+        hx-swap="innerHTML"
+        class="field has-addons mt-2">
+    <div class="control is-expanded">
+      <input class="input is-small" type="text" name="name"
+             value="{{ location.name }}" required minlength="1" maxlength="120">
+    </div>
+    <div class="control">
+      <button class="button is-info is-small" type="submit">Rename</button>
+    </div>
+  </form>
+</details>
+
+{# ── Delete button ───────────────────────────────────── #}
+<div id="location-delete-zone" class="mb-3">
+  <button class="button is-danger is-small is-outlined"
+          hx-delete="/pages/locations/{{ location.id }}"
+          hx-target="#location-tree"
+          hx-swap="innerHTML"
+          hx-confirm="Delete '{{ location.name }}'? This cannot be undone."
+          hx-on::after-request="document.getElementById('location-detail').innerHTML = ''">
+    Delete
+  </button>
+</div>
+
+{# ── Add child form ───────────────────────────────────── #}
 <form hx-post="/pages/locations/create"
       hx-target="#location-tree"
       hx-swap="innerHTML"
       class="field has-addons mt-4">
   <input type="hidden" name="parent_id" value="{{ location.id }}">
   <div class="control is-expanded">
-    <input class="input" type="text" name="name"
+    <input class="input is-small" type="text" name="name"
            placeholder="New child location" required minlength="1" maxlength="120">
   </div>
   <div class="control">
-    <button class="button is-info" type="submit">Add Child</button>
+    <button class="button is-info is-small" type="submit">Add Child</button>
   </div>
 </form>
 
@@ -28,7 +57,10 @@
 <h3 class="title is-6 mt-4">Children</h3>
 <div class="tags">
   {% for child in children %}
-  <span class="tag is-info is-light">{{ child.name }}</span>
+  <a class="tag is-info is-light"
+     hx-get="/pages/locations/{{ child.id }}/detail"
+     hx-target="#location-detail"
+     hx-swap="innerHTML">{{ child.name }}</a>
   {% endfor %}
 </div>
 {% endif %}

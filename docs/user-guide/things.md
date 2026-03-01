@@ -9,7 +9,31 @@ When you create a Thing, the system automatically enriches it with structured me
 - **Vector indexing**: A text embedding (384-dim, `all-MiniLM-L6-v2`) is generated and stored in Qdrant for semantic search.
 - **Placement**: A Thing can be placed at a Location. Moving it creates a new placement record and deactivates the old one.
 
-## Endpoints
+## Web UI
+
+Navigate to **Things** in the top navbar. The page has two tabs.
+
+### Register tab
+
+1. Enter a **Name** (required) and an optional **Description**.
+2. Watch the **Metadata Preview** panel auto-populate as you type - it shows inferred category, material, room hint, and tags.
+3. Optionally pick a **Location** from the drop-down.
+4. Click **Register Thing**.
+
+The form resets automatically on success.
+
+### Browse tab
+
+1. Use the filter bar to narrow by name substring (live, 400 ms debounce).
+2. Click **All** to clear the filter.
+3. Click any row to open the **detail panel** on the right.
+
+From the detail panel you can:
+
+- **Edit** - open an inline form to change name/description and optionally re-run the enricher.
+- **Delete** - requires confirmation; also removes the Qdrant vector point.
+
+## REST API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|

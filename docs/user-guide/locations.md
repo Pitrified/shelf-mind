@@ -10,7 +10,31 @@ They support unlimited nesting via a materialized-path approach.
 - **Materialized path**: Stored as a string, enables fast prefix queries (e.g. "everything under `/Home/Kitchen`").
 - **Sibling uniqueness**: No two children of the same parent can share a name.
 
-## Endpoints
+## Web UI
+
+Navigate to **Locations** in the top navbar. The page has a two-column layout.
+
+### Location Tree (left panel)
+
+- The tree shows all root-level locations, loaded on page open.
+- Use the **Add** bar at the top to create a new root location.
+- Click any location to open its detail on the right.
+
+### Location Detail (right panel)
+
+After clicking a location you can:
+
+| Action | How |
+|--------|-----|
+| Create child | Use the "New child location" bar at the bottom |
+| Rename | Expand the "Rename location" section and submit |
+| Delete | Click **Delete**; confirm in the browser dialog |
+| Force delete (Things present) | After a "Things placed here" warning appears, click **Force Delete** |
+| Navigate to children | Click any child tag in the children section |
+
+Renaming also updates all descendant paths automatically and refreshes the tree.
+
+## REST API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|

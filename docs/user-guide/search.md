@@ -2,6 +2,49 @@
 
 ShelfMind provides two search engines - **text search** and **image search** - both using vector similarity in Qdrant.
 
+## Web UI
+
+Navigate to **Search** in the top navbar. The page has two tabs.
+
+### Text Search tab
+
+1. Enter a **Search Query** (required).
+2. Optionally fill in:
+   - **Category Filter** - exact category match (e.g. `tools`)
+   - **Material Filter** - keyword match (e.g. `metal`)
+   - **Tags Filter** - comma-separated tags that must all be present (e.g. `red, sharp`)
+   - **Location Filter** - path prefix (e.g. `/Home/Garage`)
+   - **Max Results** - 1-100 (default 10)
+3. Click **Search**.
+
+Results appear on the right with a relevance score and tags.
+
+### Image Search tab
+
+You can search by image in two ways:
+
+**Upload file**: Click "Upload File", select an image from your device, set the max results, and click **Search by Image**.
+
+**Camera capture**:
+
+1. Switch to the "Camera" sub-tab.
+2. Click **Start Camera** - the browser will ask for permission.
+3. Point the camera at the object.
+4. Click **Capture & Search** - a snapshot is taken and sent to the server.
+5. Click **Stop** when done.
+
+> Image search requires the vision strategy to be configured (see [developer notes](#image-search-developer-notes) below).
+
+## Image Search Developer Notes
+
+The vision search pipeline is scaffolded in Phase 1 with a `NoOpVisionStrategy` that returns empty results. To enable real results you need to:
+
+1. Implement a `VisionStrategy` subclass (e.g. CLIP or ResNet-based).
+2. Register it in `Container.initialize()`.
+3. Index image vectors for existing things via `ThingService`.
+
+See [Feature 03 - Search](../features/03_search.md) for the full pipeline description.
+
 ## Text Search
 
 Text search embeds your query with `all-MiniLM-L6-v2` (384 dimensions), searches the vector store, and then applies a re-ranking formula that combines vector similarity with metadata overlap and location proximity.

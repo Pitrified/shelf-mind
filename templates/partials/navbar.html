@@ -33,6 +33,15 @@
         <a class="navbar-item" href="/dashboard" {% if active_page == 'dashboard' %}aria-current="page"{% endif %}>
           Dashboard
         </a>
+        <a class="navbar-item" href="/pages/things" {% if active_page == 'things' %}aria-current="page"{% endif %}>
+          Things
+        </a>
+        <a class="navbar-item" href="/pages/locations" {% if active_page == 'locations' %}aria-current="page"{% endif %}>
+          Locations
+        </a>
+        <a class="navbar-item" href="/pages/search" {% if active_page == 'search' %}aria-current="page"{% endif %}>
+          Search
+        </a>
         {% endif %}
         {% if debug %}
         <a class="navbar-item" href="/docs" target="_blank" rel="noopener">

@@ -92,6 +92,10 @@ nav:
   - Specifications:
       - Functional: specs/functional_specification.md
       - Technical Architecture: specs/technical_architecture_specification.md
+  - Features:
+      - Thing Registration: features/01_thing_registration.md
+      - Location Management: features/02_location_management.md
+      - Search: features/03_search.md
   - Guides:
       - UV Package Manager: guides/uv.md
       - Pre-commit Hooks: guides/pre_commit.md

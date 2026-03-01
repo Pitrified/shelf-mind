@@ -1,0 +1,42 @@
+{# Thing edit form partial - rendered via HTMX #}
+<h2 class="title is-5 mb-3">Edit: {{ thing.name }}</h2>
+
+<form hx-post="/pages/things/{{ thing.id }}/update"
+      hx-target="#thing-detail-panel"
+      hx-swap="innerHTML">
+
+  <div class="field">
+    <label class="label" for="edit-thing-name">Name</label>
+    <div class="control">
+      <input class="input" type="text" id="edit-thing-name" name="name"
+             value="{{ thing.name }}"
+             required minlength="1" maxlength="120">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label" for="edit-thing-desc">Description</label>
+    <div class="control">
+      <textarea class="textarea" id="edit-thing-desc" name="description"
+                rows="3">{{ thing.description }}</textarea>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="checkbox">
+      <input type="checkbox" name="regenerate_metadata" value="1">
+      Re-run metadata enrichment
+    </label>
+  </div>
+
+  <div class="buttons mt-3">
+    <button class="button is-primary is-small" type="submit">Save</button>
+    <button class="button is-small"
+            type="button"
+            hx-get="/pages/things/{{ thing.id }}/detail"
+            hx-target="#thing-detail-panel"
+            hx-swap="innerHTML">
+      Cancel
+    </button>
+  </div>
+</form>

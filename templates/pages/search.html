@@ -6,83 +6,293 @@
 <section class="section">
   <div class="container">
     <h1 class="title is-3">Search Things</h1>
-    <p class="subtitle is-5">Find objects by text or filter by metadata</p>
+    <p class="subtitle is-5">Find objects by text query or by image</p>
 
-    <div class="columns">
-      {# Search form #}
-      <div class="column is-4">
-        <div class="box">
-          <form hx-post="/pages/search/results"
-                hx-target="#search-results"
-                hx-swap="innerHTML"
-                hx-indicator="#search-indicator">
+    {# Tab navigation #}
+    <div class="tabs mb-0">
+      <ul>
+        <li class="is-active" id="stab-text"><a onclick="showSearchTab('text')">Text Search</a></li>
+        <li id="stab-vision"><a onclick="showSearchTab('vision')">Image Search</a></li>
+      </ul>
+    </div>
 
-            <div class="field">
-              <label class="label" for="search-q">Search Query</label>
-              <div class="control">
-                <input class="input" type="text" id="search-q" name="q"
-                       placeholder="e.g. screwdriver in the garage"
-                       required minlength="1" maxlength="500">
+    {# ── Text search tab ───────────────────────────────────── #}
+    <div id="spane-text" class="tab-pane">
+      <div class="box" style="border-top-left-radius:0">
+        <div class="columns">
+          {# Search form #}
+          <div class="column is-4">
+            <form hx-post="/pages/search/results"
+                  hx-target="#search-results"
+                  hx-swap="innerHTML"
+                  hx-indicator="#search-indicator">
+
+              <div class="field">
+                <label class="label" for="search-q">Search Query</label>
+                <div class="control">
+                  <input class="input" type="text" id="search-q" name="q"
+                         placeholder="e.g. screwdriver in the garage"
+                         required minlength="1" maxlength="500">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="search-category">Category Filter</label>
+                <div class="control">
+                  <input class="input" type="text" id="search-category"
+                         name="category" placeholder="e.g. tool">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="search-material">Material Filter</label>
+                <div class="control">
+                  <input class="input" type="text" id="search-material"
+                         name="material" placeholder="e.g. metal">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="search-tags">Tags Filter</label>
+                <div class="control">
+                  <input class="input" type="text" id="search-tags"
+                         name="tags" placeholder="e.g. red, sharp (comma-separated)">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="search-location">Location Filter</label>
+                <div class="control">
+                  <input class="input" type="text" id="search-location"
+                         name="location_filter" placeholder="e.g. /Home/Garage">
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="search-limit">Max Results</label>
+                <div class="control">
+                  <input class="input" type="number" id="search-limit"
+                         name="limit" value="10" min="1" max="100">
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="control">
+                  <button class="button is-primary is-fullwidth" type="submit">
+                    <span>Search</span>
+                    <span id="search-indicator" class="htmx-indicator ml-2">
+                      Searching...
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {# Search results #}
+          <div class="column is-8">
+            <div id="search-results">
+              <div class="box">
+                <p class="has-text-grey-light has-text-centered">
+                  Enter a query and click Search to find things
+                </p>
               </div>
             </div>
-
-            <div class="field">
-              <label class="label" for="search-category">Category Filter</label>
-              <div class="control">
-                <input class="input" type="text" id="search-category"
-                       name="category_filter" placeholder="e.g. tool">
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="search-material">Material Filter</label>
-              <div class="control">
-                <input class="input" type="text" id="search-material"
-                       name="material_filter" placeholder="e.g. metal">
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="search-location">Location Filter</label>
-              <div class="control">
-                <input class="input" type="text" id="search-location"
-                       name="location_filter" placeholder="e.g. /home/garage">
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="search-limit">Max Results</label>
-              <div class="control">
-                <input class="input" type="number" id="search-limit"
-                       name="limit" value="10" min="1" max="100">
-              </div>
-            </div>
-
-            <div class="field">
-              <div class="control">
-                <button class="button is-primary is-fullwidth" type="submit">
-                  <span>Search</span>
-                  <span id="search-indicator" class="htmx-indicator ml-2">
-                    Searching...
-                  </span>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {# Search results #}
-      <div class="column is-8">
-        <div id="search-results">
-          <div class="box">
-            <p class="has-text-grey-light has-text-centered">
-              Enter a query and click Search to find things
-            </p>
           </div>
         </div>
       </div>
     </div>
+
+    {# ── Vision search tab ─────────────────────────────────── #}
+    <div id="spane-vision" class="tab-pane is-hidden">
+      <div class="box" style="border-top-left-radius:0">
+        <div class="columns">
+          <div class="column is-5">
+
+            {# Tabs inside vision: file upload vs camera #}
+            <div class="tabs is-small mb-3">
+              <ul>
+                <li class="is-active" id="vtab-file"><a onclick="showVisionTab('file')">Upload File</a></li>
+                <li id="vtab-camera"><a onclick="showVisionTab('camera')">Camera</a></li>
+              </ul>
+            </div>
+
+            {# File upload #}
+            <div id="vpane-file">
+              <form id="vision-file-form"
+                    hx-post="/pages/search/vision"
+                    hx-target="#vision-results"
+                    hx-swap="innerHTML"
+                    hx-encoding="multipart/form-data"
+                    hx-indicator="#vision-indicator">
+                <div class="field">
+                  <label class="label" for="vision-file">Image file</label>
+                  <div class="control">
+                    <input class="input" type="file" id="vision-file" name="image"
+                           accept="image/*"
+                           onchange="previewVisionFile(this)">
+                  </div>
+                  <p class="help">JPEG, PNG, WebP, GIF supported</p>
+                </div>
+                <div class="field">
+                  <label class="label" for="vision-limit">Max Results</label>
+                  <div class="control">
+                    <input class="input" type="number" id="vision-limit"
+                           name="limit" value="10" min="1" max="100">
+                  </div>
+                </div>
+                <div id="vision-file-preview" class="mb-3"></div>
+                <div class="field">
+                  <div class="control">
+                    <button class="button is-primary is-fullwidth" type="submit">
+                      <span>Search by Image</span>
+                      <span id="vision-indicator" class="htmx-indicator ml-2">Searching...</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {# Camera capture #}
+            <div id="vpane-camera" class="is-hidden">
+              <div class="field">
+                <label class="label">Camera Preview</label>
+                <div class="camera-preview-container mb-2">
+                  <video id="camera-video" class="camera-video" autoplay playsinline
+                         aria-label="Camera preview"></video>
+                  <canvas id="camera-canvas" class="is-hidden"></canvas>
+                </div>
+              </div>
+              <div class="buttons">
+                <button class="button is-info" type="button" onclick="startCamera()">
+                  Start Camera
+                </button>
+                <button class="button is-primary" type="button" id="capture-btn"
+                        disabled onclick="captureAndSearch()">
+                  Capture &amp; Search
+                </button>
+                <button class="button is-light" type="button" onclick="stopCamera()">
+                  Stop
+                </button>
+              </div>
+              <div class="field mt-3">
+                <label class="label" for="camera-limit">Max Results</label>
+                <div class="control">
+                  <input class="input" type="number" id="camera-limit"
+                         value="10" min="1" max="100">
+                </div>
+              </div>
+              <div id="camera-snapshot-preview" class="mt-2"></div>
+            </div>
+
+          </div>
+
+          {# Vision results #}
+          <div class="column is-7">
+            <div id="vision-results">
+              <div class="box">
+                <p class="has-text-grey-light has-text-centered">
+                  Upload or capture an image to search by appearance
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </section>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+/* ── Search tab toggle ─────────────────────────────── */
+function showSearchTab(name) {
+  ['text', 'vision'].forEach(function(t) {
+    document.getElementById('spane-' + t).classList.toggle('is-hidden', t !== name);
+    document.getElementById('stab-' + t).classList.toggle('is-active', t === name);
+  });
+}
+
+/* ── Vision input sub-tabs ─────────────────────────── */
+function showVisionTab(name) {
+  ['file', 'camera'].forEach(function(t) {
+    document.getElementById('vpane-' + t).classList.toggle('is-hidden', t !== name);
+    document.getElementById('vtab-' + t).classList.toggle('is-active', t === name);
+  });
+  if (name !== 'camera') stopCamera();
+}
+
+/* ── File preview ──────────────────────────────────── */
+function previewVisionFile(input) {
+  var container = document.getElementById('vision-file-preview');
+  container.innerHTML = '';
+  if (!input.files || !input.files[0]) return;
+  var img = document.createElement('img');
+  img.className = 'vision-preview-img';
+  img.src = URL.createObjectURL(input.files[0]);
+  container.appendChild(img);
+}
+
+/* ── Camera ────────────────────────────────────────── */
+var _cameraStream = null;
+
+function startCamera() {
+  var video = document.getElementById('camera-video');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(function(stream) {
+      _cameraStream = stream;
+      video.srcObject = stream;
+      document.getElementById('capture-btn').disabled = false;
+    })
+    .catch(function(err) {
+      alert('Camera access denied or unavailable: ' + err.message);
+    });
+}
+
+function stopCamera() {
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach(function(t) { t.stop(); });
+    _cameraStream = null;
+  }
+  document.getElementById('capture-btn').disabled = true;
+  var video = document.getElementById('camera-video');
+  video.srcObject = null;
+}
+
+function captureAndSearch() {
+  var video = document.getElementById('camera-video');
+  var canvas = document.getElementById('camera-canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  // Show snapshot preview
+  var preview = document.getElementById('camera-snapshot-preview');
+  var snapImg = document.createElement('img');
+  snapImg.className = 'vision-preview-img';
+  snapImg.src = canvas.toDataURL('image/jpeg');
+  preview.innerHTML = '';
+  preview.appendChild(snapImg);
+
+  // Convert canvas to blob and POST via fetch + HTMX target
+  canvas.toBlob(function(blob) {
+    var limit = parseInt(document.getElementById('camera-limit').value, 10) || 10;
+    var fd = new FormData();
+    fd.append('image', blob, 'capture.jpg');
+    fd.append('limit', limit);
+
+    var target = document.getElementById('vision-results');
+    target.innerHTML = '<div class="box"><progress class="progress is-small is-primary" max="100">Searching</progress></div>';
+
+    fetch('/pages/search/vision', { method: 'POST', body: fd,
+      headers: { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/) ? document.cookie.match(/csrf_token=([^;]+)/)[1] : '' }
+    })
+      .then(function(r) { return r.text(); })
+      .then(function(html) { target.innerHTML = html; htmx.process(target); })
+      .catch(function(e) { target.innerHTML = '<p class="has-text-danger">Search failed: ' + e + '</p>'; });
+  }, 'image/jpeg', 0.85);
+}
+</script>
 {% endblock %}

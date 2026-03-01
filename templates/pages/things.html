@@ -1,92 +1,172 @@
 {% extends "base.html" %}
 
-{% block title %}Register Thing - {{ app_name }}{% endblock %}
+{% block title %}Things - {{ app_name }}{% endblock %}
 
 {% block content %}
 <section class="section">
   <div class="container">
-    <h1 class="title is-3">Register a Thing</h1>
-    <p class="subtitle is-5">Add a new object to your inventory</p>
+    <h1 class="title is-3">Things</h1>
+    <p class="subtitle is-5">Register and browse household objects</p>
 
-    <div class="columns">
-      {# Registration form #}
-      <div class="column is-6">
-        <div class="box">
-          <form hx-post="/pages/things/create"
-                hx-target="#thing-result"
-                hx-swap="innerHTML"
-                hx-indicator="#submit-indicator">
+    {# Tab navigation #}
+    <div class="tabs mb-0" id="things-tabs">
+      <ul>
+        <li class="is-active" id="tab-register">
+          <a onclick="showThingsTab('register')">Register</a>
+        </li>
+        <li id="tab-browse">
+          <a onclick="showThingsTab('browse')">Browse</a>
+        </li>
+      </ul>
+    </div>
 
-            <div class="field">
-              <label class="label" for="thing-name">Name</label>
-              <div class="control">
-                <input class="input" type="text" id="thing-name" name="name"
-                       placeholder="e.g. Red screwdriver"
-                       required minlength="1" maxlength="120"
-                       hx-post="/pages/things/preview"
-                       hx-target="#metadata-preview"
-                       hx-trigger="keyup changed delay:500ms"
-                       hx-include="[name='description']">
-              </div>
-            </div>
+    {# ── Register tab ──────────────────────────────────── #}
+    <div id="pane-register" class="tab-pane">
+      <div class="box" style="border-top-left-radius:0">
+        <div class="columns">
+          {# Registration form #}
+          <div class="column is-6">
+            <form hx-post="/pages/things/create"
+                  hx-target="#thing-result"
+                  hx-swap="innerHTML"
+                  hx-indicator="#submit-indicator"
+                  hx-on::after-request="if(event.detail.successful && event.detail.xhr.status===200) this.reset()">
 
-            <div class="field">
-              <label class="label" for="thing-desc">Description</label>
-              <div class="control">
-                <textarea class="textarea" id="thing-desc" name="description"
-                          placeholder="Optional description"
-                          rows="3"
-                          hx-post="/pages/things/preview"
-                          hx-target="#metadata-preview"
-                          hx-trigger="keyup changed delay:500ms"
-                          hx-include="[name='name']"></textarea>
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="thing-location">Location (optional)</label>
-              <div class="control">
-                <div class="select is-fullwidth">
-                  <select id="thing-location" name="location_id"
-                          hx-get="/pages/things/location-options"
-                          hx-trigger="load"
-                          hx-swap="innerHTML">
-                    <option value="">Loading locations...</option>
-                  </select>
+              <div class="field">
+                <label class="label" for="thing-name">Name</label>
+                <div class="control">
+                  <input class="input" type="text" id="thing-name" name="name"
+                         placeholder="e.g. Red screwdriver"
+                         required minlength="1" maxlength="120"
+                         hx-post="/pages/things/preview"
+                         hx-target="#metadata-preview"
+                         hx-trigger="keyup changed delay:500ms"
+                         hx-include="[name='description']">
                 </div>
               </div>
-            </div>
 
-            <div class="field">
-              <div class="control">
-                <button class="button is-primary is-fullwidth" type="submit">
-                  <span>Register Thing</span>
-                  <span id="submit-indicator" class="htmx-indicator ml-2">
-                    Saving...
-                  </span>
-                </button>
+              <div class="field">
+                <label class="label" for="thing-desc">Description</label>
+                <div class="control">
+                  <textarea class="textarea" id="thing-desc" name="description"
+                            placeholder="Optional description"
+                            rows="3"
+                            hx-post="/pages/things/preview"
+                            hx-target="#metadata-preview"
+                            hx-trigger="keyup changed delay:500ms"
+                            hx-include="[name='name']"></textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="thing-location">Location (optional)</label>
+                <div class="control">
+                  <div class="select is-fullwidth">
+                    <select id="thing-location" name="location_id"
+                            hx-get="/pages/things/location-options"
+                            hx-trigger="load"
+                            hx-swap="innerHTML">
+                      <option value="">Loading locations...</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="control">
+                  <button class="button is-primary is-fullwidth" type="submit">
+                    <span>Register Thing</span>
+                    <span id="submit-indicator" class="htmx-indicator ml-2">
+                      Saving...
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {# Metadata preview & result #}
+          <div class="column is-6">
+            <div class="box">
+              <h2 class="title is-5">Metadata Preview</h2>
+              <div id="metadata-preview">
+                <p class="has-text-grey-light">
+                  Start typing to preview extracted metadata
+                </p>
               </div>
             </div>
-          </form>
-        </div>
-      </div>
 
-      {# Metadata preview & result #}
-      <div class="column is-6">
-        <div class="box">
-          <h2 class="title is-5">Metadata Preview</h2>
-          <div id="metadata-preview">
-            <p class="has-text-grey-light">
-              Start typing to preview extracted metadata
-            </p>
+            <div id="thing-result" class="mt-4">
+              {# Registration result appears here #}
+            </div>
           </div>
-        </div>
-
-        <div class="box mt-4" id="thing-result">
-          {# Registration result appears here #}
         </div>
       </div>
     </div>
+
+    {# ── Browse tab ────────────────────────────────────── #}
+    <div id="pane-browse" class="tab-pane is-hidden">
+      <div class="box" style="border-top-left-radius:0">
+
+        {# Search bar #}
+        <div class="field has-addons mb-4">
+          <div class="control is-expanded">
+            <input class="input" type="text" id="things-filter-input"
+                   name="q"
+                   placeholder="Filter by name..."
+                   hx-post="/pages/things/list"
+                   hx-target="#things-list-container"
+                   hx-swap="innerHTML"
+                   hx-trigger="keyup changed delay:400ms"
+                   hx-include="#things-filter-input">
+          </div>
+          <div class="control">
+            <button class="button is-light"
+                    hx-post="/pages/things/list"
+                    hx-target="#things-list-container"
+                    hx-swap="innerHTML"
+                    hx-vals='{"q": "", "offset": 0, "limit": 20}'
+                    onclick="document.getElementById('things-filter-input').value=''">
+              All
+            </button>
+          </div>
+        </div>
+
+        <div class="columns">
+          {# Things list #}
+          <div class="column is-5">
+            <div id="things-list-container"
+                 hx-post="/pages/things/list"
+                 hx-trigger="load"
+                 hx-vals='{"q": "", "offset": 0, "limit": 20}'
+                 hx-swap="innerHTML">
+              <progress class="progress is-small is-primary" max="100">Loading</progress>
+            </div>
+          </div>
+
+          {# Thing detail panel #}
+          <div class="column is-7">
+            <div class="box" id="thing-detail-panel">
+              <p class="has-text-grey-light has-text-centered">
+                Select a thing to view details
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </section>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+function showThingsTab(name) {
+  ['register', 'browse'].forEach(function(t) {
+    document.getElementById('pane-' + t).classList.toggle('is-hidden', t !== name);
+    document.getElementById('tab-' + t).classList.toggle('is-active', t === name);
+  });
+}
+</script>
 {% endblock %}

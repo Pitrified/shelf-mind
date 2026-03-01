@@ -1,0 +1,63 @@
+{# Things list partial - rendered via HTMX #}
+{% if things %}
+<div class="things-list">
+  {% for thing in things %}
+  <div class="card mb-3 thing-card"
+       hx-get="/pages/things/{{ thing.id }}/detail"
+       hx-target="#thing-detail-panel"
+       hx-swap="innerHTML"
+       role="button"
+       tabindex="0"
+       aria-label="View {{ thing.name }}">
+    <div class="card-content py-3">
+      <div class="is-flex is-justify-content-space-between is-align-items-center">
+        <div>
+          <p class="title is-6 mb-1">{{ thing.name }}</p>
+          {% if thing.description %}
+          <p class="subtitle is-7 has-text-grey mb-1">{{ thing.description | truncate(80) }}</p>
+          {% endif %}
+        </div>
+        <div class="tags ml-3" style="flex-shrink:0">
+          {% if thing.category %}
+          <span class="tag is-primary is-light">{{ thing.category }}</span>
+          {% endif %}
+          {% if thing.location_path %}
+          <span class="tag is-link is-light">{{ thing.location_path }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# Pagination controls #}
+{% if total > limit %}
+<nav class="pagination is-small mt-3" role="navigation" aria-label="Pagination">
+  {% if offset > 0 %}
+  <button class="pagination-previous"
+          hx-post="/pages/things/list"
+          hx-target="#things-list-container"
+          hx-swap="innerHTML"
+          hx-vals='{"offset": {{ [offset - limit, 0] | max }}, "limit": {{ limit }}}'>
+    Previous
+  </button>
+  {% endif %}
+  {% if offset + limit < total %}
+  <button class="pagination-next"
+          hx-post="/pages/things/list"
+          hx-target="#things-list-container"
+          hx-swap="innerHTML"
+          hx-vals='{"offset": {{ offset + limit }}, "limit": {{ limit }}}'>
+    Next
+  </button>
+  {% endif %}
+  <p class="has-text-grey-light is-size-7 mt-2">
+    {{ offset + 1 }}-{{ [offset + limit, total] | min }} of {{ total }}
+  </p>
+</nav>
+{% endif %}
+
+{% else %}
+<p class="has-text-grey-light">No things registered yet.</p>
+{% endif %}

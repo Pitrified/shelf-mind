@@ -410,6 +410,8 @@ async def search_results_partial(
     category: Annotated[str, Form()] = "",
     material: Annotated[str, Form()] = "",
     tags: Annotated[str, Form()] = "",
+    location_filter: Annotated[str, Form()] = "",
+    limit: Annotated[int, Form()] = 10,
 ) -> HTMLResponse:
     """Execute a text search and return results partial."""
     search_svc = container.search_service()
@@ -419,6 +421,8 @@ async def search_results_partial(
         category_filter=category or None,
         material_filter=material or None,
         tags_filter=tags_list,
+        location_filter=location_filter or None,
+        limit=max(1, min(100, limit)),
     )
 
     template_results = [
@@ -442,3 +446,476 @@ async def search_results_partial(
             "query": q,
         },
     )
+
+
+@router.post(
+    "/pages/search/vision",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def vision_search_results_partial(
+    request: Request,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    container: Annotated[Container, Depends(get_domain_container)],
+    limit: Annotated[int, Form()] = 10,
+) -> HTMLResponse:
+    """Execute a vision (image) search and return results partial.
+
+    Accepts a multipart image upload (field name ``image``). Returns
+    the same search_results partial populated with vision-ranked hits.
+
+    Args:
+        request: Incoming request (also used to read multipart).
+        _user: Authenticated user session.
+        container: Domain DI container.
+        limit: Max results (1-100).
+
+    Returns:
+        Search results partial HTML.
+    """
+    import json as _json  # noqa: PLC0415
+
+    form = await request.form()
+    upload = form.get("image")
+    if upload is None or not hasattr(upload, "read"):
+        return HTMLResponse(
+            content='<div class="notification is-warning">No image provided.</div>',
+        )
+
+    image_bytes = await upload.read()  # type: ignore[union-attr]
+    if not image_bytes:
+        return HTMLResponse(
+            content='<div class="notification is-warning">Empty image file.</div>',
+        )
+
+    search_svc = container.search_service()
+    results = search_svc.search_image(
+        image_bytes=image_bytes,
+        limit=max(1, min(100, limit)),
+    )
+
+    template_results = [
+        {
+            "name": r.name,
+            "description": r.description,
+            "score": r.score,
+            "category": r.category,
+            "location_path": r.location_path,
+            "tags": r.tags,
+        }
+        for r in results
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "partials/search_results.html",
+        {
+            "results": template_results,
+            "total": len(template_results),
+            "query": f"image ({_json.dumps(len(image_bytes))} bytes)",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Thing list / detail / edit / delete  (HTMX)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/pages/things/list",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def things_list_partial(
+    request: Request,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+    q: Annotated[str, Form()] = "",
+    offset: Annotated[int, Form()] = 0,
+    limit: Annotated[int, Form()] = 20,
+) -> HTMLResponse:
+    """Return paginated things list partial, optionally filtered by name.
+
+    Args:
+        request: Incoming request.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+        q: Optional name substring filter.
+        offset: Pagination offset.
+        limit: Page size.
+
+    Returns:
+        Things list partial HTML.
+    """
+    import json as _json  # noqa: PLC0415
+
+    thing_svc = container.thing_service(session)
+    placement_repo = container.placement_service(session)._placement_repo  # noqa: SLF001
+
+    all_things = thing_svc.list_things(offset=0, limit=10_000)
+    if q:
+        q_lower = q.lower()
+        all_things = [t for t in all_things if q_lower in t.name.lower()]
+
+    total = len(all_things)
+    page = all_things[offset : offset + limit]
+
+    things_data = []
+    for t in page:
+        meta = _json.loads(t.metadata_json or "{}")
+        placement = placement_repo.get_active_for_thing(t.id)
+        location_path: str | None = None
+        if placement is not None:
+            loc_svc = container.location_service(session)
+            try:
+                loc = loc_svc.get_location(placement.location_id)
+                location_path = loc.path
+            except (ValueError, RuntimeError):
+                pass
+        things_data.append(
+            {
+                "id": t.id,
+                "name": t.name,
+                "description": t.description,
+                "category": meta.get("category"),
+                "location_path": location_path,
+            },
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/things_list.html",
+        {
+            "things": things_data,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        },
+    )
+
+
+@router.get(
+    "/pages/things/{thing_id}/detail",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def thing_detail_partial(
+    request: Request,
+    thing_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> HTMLResponse:
+    """Return the thing detail partial.
+
+    Args:
+        request: Incoming request.
+        thing_id: UUID of the Thing.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+
+    Returns:
+        Thing detail partial HTML.
+    """
+    import json as _json  # noqa: PLC0415
+    import uuid as _uuid  # noqa: PLC0415
+
+    thing_svc = container.thing_service(session)
+    try:
+        thing = thing_svc.get_thing(_uuid.UUID(thing_id))
+    except (ValueError, RuntimeError):
+        return HTMLResponse(
+            content='<p class="has-text-danger">Thing not found.</p>',
+        )
+
+    meta = _json.loads(thing.metadata_json or "{}")
+    placement_svc = container.placement_service(session)
+    placement = placement_svc._placement_repo.get_active_for_thing(thing.id)  # noqa: SLF001
+    location_path: str | None = None
+    if placement is not None:
+        loc_svc = container.location_service(session)
+        try:
+            loc = loc_svc.get_location(placement.location_id)
+            location_path = loc.path
+        except (ValueError, RuntimeError):
+            pass
+
+    thing_ctx = {
+        "id": thing.id,
+        "name": thing.name,
+        "description": thing.description,
+        "category": meta.get("category"),
+        "material": meta.get("material"),
+        "room_hint": meta.get("room_hint"),
+        "tags": meta.get("tags", []),
+        "usage_context": meta.get("usage_context", []),
+        "location_path": location_path,
+        "created_at": thing.created_at.strftime("%Y-%m-%d %H:%M"),
+    }
+
+    return templates.TemplateResponse(
+        request,
+        "partials/thing_detail.html",
+        {"thing": thing_ctx},
+    )
+
+
+@router.get(
+    "/pages/things/{thing_id}/edit-form",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def thing_edit_form_partial(
+    request: Request,
+    thing_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> HTMLResponse:
+    """Return the thing inline edit form partial.
+
+    Args:
+        request: Incoming request.
+        thing_id: UUID of the Thing.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+
+    Returns:
+        Thing edit form partial HTML.
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    thing_svc = container.thing_service(session)
+    try:
+        thing = thing_svc.get_thing(_uuid.UUID(thing_id))
+    except (ValueError, RuntimeError):
+        return HTMLResponse(
+            content='<p class="has-text-danger">Thing not found.</p>',
+        )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/thing_edit_form.html",
+        {"thing": thing},
+    )
+
+
+@router.post(
+    "/pages/things/{thing_id}/update",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def update_thing_page(
+    request: Request,
+    thing_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+    name: Annotated[str, Form()],
+    description: Annotated[str, Form()] = "",
+    regenerate_metadata: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    """Update a thing from the inline edit form.
+
+    After updating, returns the detail partial for the same thing.
+
+    Args:
+        request: Incoming request.
+        thing_id: UUID of the Thing.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+        name: New name.
+        description: New description.
+        regenerate_metadata: If "1", re-run enrichment.
+
+    Returns:
+        Updated thing detail partial HTML.
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    thing_svc = container.thing_service(session)
+    try:
+        thing_svc.update_thing(
+            _uuid.UUID(thing_id),
+            name=name,
+            description=description,
+            regenerate_metadata=bool(regenerate_metadata),
+        )
+    except (ValueError, RuntimeError):
+        lg.opt(exception=True).warning("Thing update failed")
+
+    # Re-use the detail partial handler logic
+    return await thing_detail_partial(
+        request=request,
+        thing_id=thing_id,
+        _user=_user,
+        session=session,
+        container=container,
+    )
+
+
+@router.delete(
+    "/pages/things/{thing_id}",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def delete_thing_page(
+    request: Request,
+    thing_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+) -> HTMLResponse:
+    """Delete a thing and return the refreshed things list.
+
+    Args:
+        request: Incoming request.
+        thing_id: UUID of the Thing.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+
+    Returns:
+        Refreshed things list partial HTML.
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    thing_svc = container.thing_service(session)
+    try:
+        thing_svc.delete_thing(_uuid.UUID(thing_id))
+        lg.info(f"Deleted thing: {thing_id}")
+    except (ValueError, RuntimeError):
+        lg.opt(exception=True).warning("Thing deletion failed")
+
+    return await things_list_partial(
+        request=request,
+        _user=_user,
+        session=session,
+        container=container,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Location rename / delete  (HTMX)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/pages/locations/{location_id}/rename",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def rename_location_page(
+    request: Request,
+    location_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+    name: Annotated[str, Form()],
+) -> HTMLResponse:
+    """Rename a location and return the refreshed tree + detail.
+
+    Args:
+        request: Incoming request.
+        location_id: UUID of the Location.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+        name: New name for the location.
+
+    Returns:
+        Updated location detail partial HTML (tree is also refreshed via OOB).
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    svc = container.location_service(session)
+    try:
+        loc = svc.rename_location(_uuid.UUID(location_id), name)
+    except (ValueError, RuntimeError):
+        lg.opt(exception=True).warning("Location rename failed")
+        loc = svc.get_location(_uuid.UUID(location_id))
+
+    children = svc.get_children(loc.id)
+    roots = svc.get_children(parent_id=None)
+
+    # Primary swap: detail panel; OOB swap: location tree
+    detail_html = templates.get_template("partials/location_detail.html").render(
+        {"request": request, "location": loc, "children": children},
+    )
+    tree_html = (
+        '<div id="location-tree" hx-swap-oob="innerHTML">'
+        + templates.get_template("partials/location_tree.html").render(
+            {"request": request, "locations": roots},
+        )
+        + "</div>"
+    )
+    return HTMLResponse(content=detail_html + tree_html)
+
+
+@router.delete(
+    "/pages/locations/{location_id}",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def delete_location_page(
+    request: Request,
+    location_id: str,
+    _user: Annotated[SessionData, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_domain_session)],
+    container: Annotated[Container, Depends(get_domain_container)],
+    force: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    """Delete a location and return the refreshed location tree.
+
+    Args:
+        request: Incoming request.
+        location_id: UUID of the Location.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+        force: If "1", force-delete even when Things are present.
+
+    Returns:
+        Updated location tree partial HTML.
+    """
+    import uuid as _uuid  # noqa: PLC0415
+
+    from shelf_mind.application.errors import LocationHasChildrenError  # noqa: PLC0415
+    from shelf_mind.application.errors import LocationHasThingsError  # noqa: PLC0415
+
+    svc = container.location_service(session)
+    error_html = ""
+    try:
+        svc.delete_location(_uuid.UUID(location_id), force=bool(force))
+    except LocationHasChildrenError:
+        error_html = (
+            '<p class="has-text-danger">Cannot delete: location has children.</p>'
+        )
+    except LocationHasThingsError:
+        error_html = (
+            '<p class="has-text-warning">'
+            "Things are placed here. "
+            '<button class="button is-danger is-small ml-2"'
+            f'  hx-delete="/pages/locations/{location_id}"'
+            '  hx-target="#location-tree"'
+            '  hx-swap="innerHTML"'
+            '  hx-vals=\'{"force": "1"}\'>'
+            "Force Delete"
+            "</button>"
+            "</p>"
+        )
+    except (ValueError, RuntimeError):
+        lg.opt(exception=True).warning("Location deletion failed")
+        error_html = '<p class="has-text-danger">Deletion failed.</p>'
+
+    roots = svc.get_children(parent_id=None)
+    tree_html = templates.get_template("partials/location_tree.html").render(
+        {"request": request, "locations": roots},
+    )
+    return HTMLResponse(content=tree_html + error_html)

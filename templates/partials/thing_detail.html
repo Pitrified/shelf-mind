@@ -1,0 +1,63 @@
+{# Thing detail partial - rendered via HTMX #}
+<h2 class="title is-5 mb-3">{{ thing.name }}</h2>
+
+<table class="table is-fullwidth is-narrow mb-4">
+  <tbody>
+    <tr>
+      <td><strong>Description</strong></td>
+      <td>{{ thing.description or "—" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Location</strong></td>
+      <td>{{ thing.location_path or "Not placed" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Category</strong></td>
+      <td>{{ thing.category or "—" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Material</strong></td>
+      <td>{{ thing.material or "—" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Room hint</strong></td>
+      <td>{{ thing.room_hint or "—" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Tags</strong></td>
+      <td>
+        {% for tag in thing.tags %}
+        <span class="tag is-info is-light mr-1">{{ tag }}</span>
+        {% else %}
+        <span class="has-text-grey-light">—</span>
+        {% endfor %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Created</strong></td>
+      <td>{{ thing.created_at }}</td>
+    </tr>
+    <tr>
+      <td><strong>ID</strong></td>
+      <td><code class="is-size-7">{{ thing.id }}</code></td>
+    </tr>
+  </tbody>
+</table>
+
+{# Action buttons #}
+<div class="buttons">
+  <button class="button is-info is-small"
+          hx-get="/pages/things/{{ thing.id }}/edit-form"
+          hx-target="#thing-detail-panel"
+          hx-swap="innerHTML">
+    Edit
+  </button>
+  <button class="button is-danger is-small is-outlined"
+          hx-delete="/pages/things/{{ thing.id }}"
+          hx-target="#things-list-container"
+          hx-swap="innerHTML"
+          hx-confirm="Delete '{{ thing.name }}'? This cannot be undone."
+          hx-on::after-request="document.getElementById('thing-detail-panel').innerHTML = ''">
+    Delete
+  </button>
+</div>
