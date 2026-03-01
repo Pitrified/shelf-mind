@@ -75,7 +75,7 @@ Default limit is 10; range is 1 to 100.
 Each result receives a combined score:
 
 $$
-\text{score} = \alpha \cdot \text{vector\_similarity} + \beta \cdot \text{metadata\_overlap} + \gamma \cdot \text{location\_bonus}
+\text{score} = \alpha \cdot \text{vector_similarity} + \beta \cdot \text{metadata_overlap} + \gamma \cdot \text{location_bonus}
 $$
 
 Default weights: $\alpha = 0.7$, $\beta = 0.2$, $\gamma = 0.1$.

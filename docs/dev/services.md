@@ -139,7 +139,7 @@ Re-ranks raw vector search results using a weighted formula.
 ### Scoring Formula
 
 $$
-\text{score} = \alpha \cdot \text{vector\_score} + \beta \cdot \text{jaccard}(\text{result\_tags}, \text{query\_tags}) + \gamma \cdot \text{location\_bonus}
+\text{score} = \alpha \cdot \text{vector_score} + \beta \cdot \text{jaccard}(\text{result_tags}, \text{query_tags}) + \gamma \cdot \text{location_bonus}
 $$
 
 | Weight | Default | Meaning |

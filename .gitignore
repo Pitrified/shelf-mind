@@ -20,7 +20,7 @@ site/
 instance/
 static/css
 static/js
-static/img
+# static/img tracked in git
 static/swagger
 
 # Byte-compiled / optimized / DLL files

@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
+      - name: Download static assets
+        run: bash scripts/webapp/cdn_load.sh
+
       - name: Lint with ruff
         run: uv run ruff check .
 
@@ -37,4 +40,6 @@ jobs:
         run: uv run pyright
 
       - name: Run tests
+        env:
+          SHELF_MIND_SAMPLE_ENV_VAR: sample
         run: uv run pytest --tb=short -q
