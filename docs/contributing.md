@@ -6,7 +6,7 @@ Thank you for your interest in contributing to ShelfMind!
 
 1. Fork and clone the repository
 2. Install dependencies: `uv sync --extra webapp --group dev`
-3. Start Qdrant: `docker run -d --name qdrant -p 6333:6333 qdrant/qdrant`
+3. Start Qdrant: `docker run -d --name qdrant -p 6333:6333 qdrant/qdrant` (restart it with `docker start qdrant` if already created)
 4. Set environment variables (see [Getting Started](getting-started.md))
 5. Install pre-commit hooks: `uv run pre-commit install`
 

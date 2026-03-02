@@ -39,6 +39,12 @@ ShelfMind uses Qdrant for vector similarity search. The easiest option is Docker
 docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
 ```
 
+or restart it if already created:
+
+```bash
+docker start qdrant
+```
+
 !!! tip
     ShelfMind starts gracefully even if Qdrant is unreachable.
     Location and thing management work without it; only search features require Qdrant.
