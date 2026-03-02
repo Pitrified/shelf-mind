@@ -23,6 +23,21 @@
   </div>
 
   <div class="field">
+    <label class="label" for="edit-thing-location">Location</label>
+    <div class="control">
+      <div class="select is-fullwidth"
+           hx-get="/pages/things/location-options{% if current_location_id %}?selected={{ current_location_id }}{% endif %}"
+           hx-trigger="load"
+           hx-target="#edit-thing-location"
+           hx-swap="innerHTML">
+        <select id="edit-thing-location" name="location_id">
+          <option value="">Loading locations...</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
     <label class="checkbox">
       <input type="checkbox" name="regenerate_metadata" value="1">
       Re-run metadata enrichment

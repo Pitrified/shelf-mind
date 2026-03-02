@@ -61,11 +61,12 @@
               <div class="field">
                 <label class="label" for="thing-location">Location (optional)</label>
                 <div class="control">
-                  <div class="select is-fullwidth">
-                    <select id="thing-location" name="location_id"
-                            hx-get="/pages/things/location-options"
-                            hx-trigger="load"
-                            hx-swap="innerHTML">
+                  <div class="select is-fullwidth"
+                       hx-get="/pages/things/location-options"
+                       hx-trigger="load"
+                       hx-target="#thing-location"
+                       hx-swap="innerHTML">
+                    <select id="thing-location" name="location_id">
                       <option value="">Loading locations...</option>
                     </select>
                   </div>

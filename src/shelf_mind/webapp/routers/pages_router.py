@@ -368,14 +368,29 @@ async def thing_location_options(
     _user: Annotated[SessionData, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_domain_session)],
     container: Annotated[Container, Depends(get_domain_container)],
+    selected: Annotated[str, Query()] = "",
 ) -> HTMLResponse:
-    """Return select <option> elements for all locations."""
+    """Return select <option> elements for all locations.
+
+    Args:
+        request: Incoming request.
+        _user: Authenticated user session.
+        session: Database session.
+        container: Domain DI container.
+        selected: UUID string of the currently selected location, if any.
+
+    Returns:
+        HTML option elements for the location select.
+    """
     svc = container.location_service(session)
     locations = svc.list_locations()
+    blank_selected = "selected" if not selected else ""
     options = [
-        '<option value="">-- Select location --</option>',
-        *[f'<option value="{loc.id}">{loc.path}</option>' for loc in locations],
+        f'<option value="" {blank_selected}>-- Select location --</option>',
     ]
+    for loc in locations:
+        sel = "selected" if str(loc.id) == selected else ""
+        options.append(f'<option value="{loc.id}" {sel}>{loc.path}</option>')
     return HTMLResponse(content="\n".join(options))
 
 
@@ -698,10 +713,14 @@ async def thing_edit_form_partial(
             content='<p class="has-text-danger">Thing not found.</p>',
         )
 
+    placement_svc = container.placement_service(session)
+    placement = placement_svc.get_current_placement(thing.id)
+    current_location_id = str(placement.location_id) if placement else ""
+
     return templates.TemplateResponse(
         request,
         "partials/thing_edit_form.html",
-        {"thing": thing},
+        {"thing": thing, "current_location_id": current_location_id},
     )
 
 
@@ -719,6 +738,7 @@ async def update_thing_page(
     name: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
     regenerate_metadata: Annotated[str, Form()] = "",
+    location_id: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     """Update a thing from the inline edit form.
 
@@ -733,6 +753,7 @@ async def update_thing_page(
         name: New name.
         description: New description.
         regenerate_metadata: If "1", re-run enrichment.
+        location_id: UUID of the new location, or empty string to remove placement.
 
     Returns:
         Updated thing detail partial HTML.
@@ -749,6 +770,24 @@ async def update_thing_page(
         )
     except (ValueError, RuntimeError):
         lg.opt(exception=True).warning("Thing update failed")
+
+    # Update placement if location_id was submitted
+    placement_svc = container.placement_service(session)
+    current_placement = placement_svc.get_current_placement(_uuid.UUID(thing_id))
+    current_loc_id = str(current_placement.location_id) if current_placement else ""
+    if location_id and location_id != current_loc_id:
+        try:
+            placement_svc.place_thing(
+                thing_id=_uuid.UUID(thing_id),
+                location_id=_uuid.UUID(location_id),
+            )
+        except (ValueError, RuntimeError):
+            lg.opt(exception=True).warning("Placement update failed")
+    elif not location_id and current_placement is not None:
+        try:
+            placement_svc.remove_placement(_uuid.UUID(thing_id))
+        except (ValueError, RuntimeError):
+            lg.opt(exception=True).warning("Placement removal failed")
 
     # Re-use the detail partial handler logic
     return await thing_detail_partial(
