@@ -12,10 +12,10 @@
     <div class="tabs mb-0" id="things-tabs">
       <ul>
         <li class="is-active" id="tab-register">
-          <a onclick="showThingsTab('register')">Register</a>
+          <a data-tab="register">Register</a>
         </li>
         <li id="tab-browse">
-          <a onclick="showThingsTab('browse')">Browse</a>
+          <a data-tab="browse">Browse</a>
         </li>
       </ul>
     </div>
@@ -122,11 +122,11 @@
           </div>
           <div class="control">
             <button class="button is-light"
+                    id="things-clear-btn"
                     hx-post="/pages/things/list"
                     hx-target="#things-list-container"
                     hx-swap="innerHTML"
-                    hx-vals='{"q": "", "offset": 0, "limit": 20}'
-                    onclick="document.getElementById('things-filter-input').value=''">
+                    hx-vals='{"q": "", "offset": 0, "limit": 20}'>
               All
             </button>
           </div>
@@ -160,13 +160,4 @@
 </section>
 {% endblock %}
 
-{% block scripts_extra %}
-<script>
-function showThingsTab(name) {
-  ['register', 'browse'].forEach(function(t) {
-    document.getElementById('pane-' + t).classList.toggle('is-hidden', t !== name);
-    document.getElementById('tab-' + t).classList.toggle('is-active', t === name);
-  });
-}
-</script>
-{% endblock %}
+{# showThingsTab() lives in static/js/app.js (CSP forbids inline scripts). #}
